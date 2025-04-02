@@ -1,0 +1,66 @@
+- name: Login to proxmox api
+  local_action:
+    module: uri
+    url: https://proxmox.domain.com/api2/json/access/ticket
+    method: POST
+    body: "username={{ user_awx }}@domain.com&password={{ password_awx }}"
+    validate_certs: no
+    status_code: 200
+  register: proxmox_login
+
+- name: Get proxmox nodes
+  local_action:
+    module: uri
+    url: https://proxmox.domain.com/api2/json/nodes
+    method: GET
+    headers:
+      Cookie: "PVEAuthCookie={{ proxmox_login.json.data.ticket }}"
+    validate_certs: no
+    status_code: 200
+  register: proxmox_nodes
+
+- name: Get proxmox VMs
+  local_action:
+    module: uri
+    url: https://proxmox.domain.com/api2/json/nodes/{{ item }}/qemu
+    method: GET
+    headers:
+      Cookie: "PVEAuthCookie={{ proxmox_login.json.data.ticket }}"
+    validate_certs: no
+    status_code: 200
+  register: proxmox_vms
+  with_items: "{{ proxmox_nodes.json | json_query(nodes_query) }}"
+  vars:
+    nodes_query: "data[*].node"
+
+# - name: Show proxmox VMs ip and name
+#   debug:
+#     msg: "{{ item }}"
+#   with_items: "{{ proxmox_vms.results | json_query(vms_query) }}"
+#   vars:
+#     vms_query: "[*].json.data[*].{ip: ip, name: name}"
+
+- name: Add Proxmox hosts to group
+  local_action:
+    module: uri
+    url: https://ansible.domain.com/api/v2/groups/22/hosts/
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    user: "{{ user_awx }}"
+    password: "{{ password_awx }}"
+    force_basic_auth: true
+    method: POST
+    body_format: json
+    body: '{"name": "{{ item.name }}", "description": "{{ item.name }}"}'
+    validate_certs: no
+    status_code: [201, 204]
+  with_items: "{{ proxmox_vms.results | json_query(server_query) }}"
+  vars:
+    server_query: "[*].json.data[*].{ip: ip, name: name}"
+# - name: Show proxmox VMs
+#   debug:
+#     msg: "{{ item }}"
+#   with_items: "{{ proxmox_vms.results | json_query(vms_query) }}"
+#   vars:
+#     vms_query: "[*].json.data[*].name"

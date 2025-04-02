@@ -1,0 +1,22 @@
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Update cache
+  ansible.builtin.apt:
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Update specific packages on Ubuntu
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: latest
+  loop: "{{ patch_packages_ubuntu }}"
+  when: ansible_os_family == 'Debian' and item | string in ansible_facts.packages
+
+- name: Update specific packages on RedHat
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: latest
+  loop: "{{ patch_packages_redhat }}"
+  when: ansible_os_family == 'RedHat'and item | string in ansible_facts.packages

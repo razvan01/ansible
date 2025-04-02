@@ -1,0 +1,91 @@
+# - name: Starting patch management
+#   community.general.slack:
+#     token: "{{ slack_token }}"
+#     msg: >
+#       Starting patch management on {{ inventory_hostname }} ({{ ansible_hostname }}) with IP {{ ansible_host }}
+#       ({{ ansible_default_ipv4.address }}) and OS {{ ansible_distribution }} {{ ansible_distribution_version }}
+#     channel: "#devops"
+#     username: "Ansible"
+#     color: "good"
+#   delegate_to: localhost
+#   become: false
+
+- name: Upgrade all packages on servers
+  ansible.builtin.apt:
+    upgrade: true
+    update_cache: true
+    cache_valid_time: 86400
+    force_apt_get: true
+
+- name: Check if a reboot is needed on all servers
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+    get_checksum: false
+  register: reboot_required_file
+
+- name: Remove useless packages from the cache
+  ansible.builtin.apt:
+    autoclean: true
+
+- name: Remove dependencies that are no longer required
+  ansible.builtin.apt:
+    autoremove: true
+
+- name: Reboot the box if kernel updated
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by Ansible"
+    connect_timeout: 5
+    reboot_timeout: 300
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+  when: reboot_required_file.stat.exists
+
+- name: Wait for the server to come back online
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 300
+    sleep: 5
+  when: reboot_required_file.stat.exists
+
+- name: Check servers web status
+  ansible.builtin.uri:
+    url: "{{ web_url }}"
+    validate_certs: false
+  register: webserver_status
+  failed_when: webserver_status.status not in [200, 301]
+  when: web_url is defined
+  ignore_errors: true
+  delegate_to: localhost
+  become: false
+
+- name: Send a slack notification if the webserver is up
+  community.general.slack:
+    token: "{{ slack_token }}"
+    msg: >-
+      The webserver from <{{ web_url }}|{{ web_name }}> is up with status code
+      <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/{{ webserver_status.status }}|{{ webserver_status.status }}>
+    channel: "#devops"
+    username: "Ansible"
+    color: "good"
+  when: webserver_status.status in [200, 301] and reboot_required_file.stat.exists
+  delegate_to: localhost
+  become: false
+
+- name: Send a slack notification if the webserver is down
+  community.general.slack:
+    token: "{{ slack_token }}"
+    msg: >-
+      The webserver from <{{ web_url }}|{{ web_name }}> is down with status code
+      <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/{{ webserver_status.status }}|{{ webserver_status.status }}>
+    channel: "#devops"
+    username: "Ansible"
+    color: "danger"
+  when: >
+    webserver_status.status not in [200, 301] or
+    webserver_status is failed or
+    webserver_status is skipped or
+    webserver_status is unreachable and
+    reboot_required_file.stat.exists
+  delegate_to: localhost
+  become: false

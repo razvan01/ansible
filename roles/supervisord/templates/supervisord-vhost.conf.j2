@@ -1,0 +1,13 @@
+[program:{{ item.vhost_name }}_horizon]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/bin/php /var/www/{{ item.vhost_name }}/current/artisan horizon
+
+autostart=true
+autorestart=true
+redirect_stderr=true
+user=www-data
+
+stdout_logfile=/var/log/supervisor/{{ item.vhost_name }}-horizon.log
+stdout_logfile_maxbytes=10MB
+logfile_backups=14
+stopwaitsecs=3600

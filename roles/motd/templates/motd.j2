@@ -1,0 +1,11 @@
+     _              _ _     _
+    / \   _ __  ___(_) |__ | | ___
+   / _ \ | '_ \/ __| | '_ \| |/ _ \
+  / ___ \| | | \__ \ | |_) | |  __/
+ /_/   \_\_| |_|___/_|_.__/|_|\___|
+
+  FQDN:    : {{ ansible_fqdn }}
+  Distro:  : {{ ansible_distribution }} {{ ansible_distribution_version }} {{ ansible_distribution_release }}
+  Virtual: : {{ 'YES' if ansible_virtualization_role == 'guest' else 'NO' }}
+  CPUs:    : {{ ansible_processor_vcpus }}
+  RAM:     : {{ (ansible_memtotal_mb / 1024) | round(1) }}GB

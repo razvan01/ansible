@@ -1,0 +1,139 @@
+php_version: "8.3"
+install_arelle: "true"
+
+vhosts:
+  - vhost_name: st-new.domain.com
+    vhost_template: vhost-frontend.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domain_staging_front"
+    db_user: "domain_staging_front"
+    db_password: "{{ vault_StDb_password }}"
+    db_host: "%"
+    ftp_user: "domain_staging_front"
+    ftp_password: "{{ vault_StFtp_password }}"
+    with_supervisord: "false"
+
+  - vhost_name: st-api-hub-new.domain.com
+    vhost_template: vhost-api.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domain_stapihu"
+    db_user: "domain_stapihu"
+    db_host: "%"
+    db_password: "{{ vault_StApiHubDb_password }}"
+    ftp_user: "domain_stapihu"
+    ftp_password: "{{ vault_StApiHubFtp_password }}"
+    with_supervisord: "true"
+
+  - vhost_name: st-app-new.domain.com
+    vhost_template: vhost-app.j2
+    vhost_location_microsoft: "true"
+    vhost_location_microsoft_file: "microsoft-identity-association.json"
+    vhost_location_microsoft_applicationId: "{{ vault_StAppVhostLocationMicrosoftApplicationId }}"
+    vhost_location_wordpress: "false"
+    db_name: "domain_staging"
+    db_user: "domain_staging"
+    db_password: "{{ vault_StAppDb_password }}"
+    db_host: "%"
+    ftp_user: "domain_staging"
+    ftp_password: "{{ vault_StAppFtp_password }}"
+    with_supervisord: "true"
+
+  - vhost_name: demo-new.domain.com
+    vhost_template: vhost-frontend.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domaindemo_frontend"
+    db_user: "domaindemo_frontend"
+    db_password: "{{ vault_DemoDb_password }}"
+    db_host: "%"
+    ftp_user: "domaindemo_frontend"
+    ftp_password: "{{ vault_DemoFtp_password }}"
+    with_supervisord: "false"
+
+  - vhost_name: demo-api-hub-new.domain.com
+    vhost_template: vhost-api.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domaindemo_apihub"
+    db_user: "domaindemo_apihub"
+    db_password: "{{ vault_DemoApiHubDb_password }}"
+    db_host: "%"
+    ftp_user: "domaindemo_apihub"
+    ftp_password: "{{ vault_DemoApiHubFtp_password }}"
+    with_supervisord: "true"
+
+  - vhost_name: demo-app-new.domain.com
+    vhost_template: vhost-app.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domaindemo_app"
+    db_user: "domaindemo_app"
+    db_password: "{{ vault_DemoAppDbPassword }}"
+    db_host: "%"
+    ftp_user: "domaindemo_app"
+    ftp_password: "{{ vault_DemoAppFtpPassword }}"
+    with_supervisord: "true"
+
+  - vhost_name: demo.domain.com
+    vhost_template: vhost-frontend.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domaindemo_frontend_l10"
+    db_user: "domaindemo_frontend"
+    db_password: "{{ vault_DemoDb_password }}"
+    db_host: "%"
+    with_supervisord: "false"
+
+  - vhost_name: demo-api-hub.domain.com
+    vhost_template: vhost-api.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domaindemo_apihub_l10"
+    db_user: "domaindemo_apihub"
+    db_password: "{{vault_DemoApiHubDb_password }}"
+    db_host: "%"
+    with_supervisord: "true"
+
+  - vhost_name: demo-app.domain.com
+    vhost_template: vhost-app.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domaindemo_app_l10"
+    db_user: "domaindemo_app"
+    db_password: "{{ vault_DemoAppDbPassword }}"
+    db_host: "%"
+    with_supervisord: "true"
+
+  - vhost_name: st.domain.com
+    vhost_template: vhost-frontend.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domain_stapihu_l10"
+    db_user: "domain_stapihu"
+    db_password: "{{ vault_StDb_password }}"
+    db_host: "%"
+    with_supervisord: "false"
+
+  - vhost_name: st-api-hub.domain.com
+    vhost_template: vhost-api.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domain_staging_front_l10"
+    db_user: "domain_staging_front"
+    db_password: "{{ vault_StApiHubDb_password }}"
+    db_host: "%"
+    with_supervisord: "true"
+
+  - vhost_name: st-app.domain.com
+    vhost_template: vhost-app.j2
+    vhost_location_microsoft: "true"
+    vhost_location_microsoft_file: "microsoft-identity-association.json"
+    vhost_location_microsoft_applicationId: "{{ vault_StAppVhostLocationMicrosoftApplicationId }}"
+    vhost_location_wordpress: "false"
+    db_name: "domain_staging_l10"
+    db_user: "domain_staging"
+    db_password: "{{ vault_StAppDb_password }}"
+    db_host: "%"
+    with_supervisord: "true"

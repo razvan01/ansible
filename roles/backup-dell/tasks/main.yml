@@ -1,0 +1,5 @@
+- include: dellos4.yml
+  when: inventory_hostname in groups['dellos4']
+
+- include: dellos6.yml
+  when: inventory_hostname in groups['dellos6']

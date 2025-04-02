@@ -1,0 +1,2 @@
+# use web for webservers and directory for directory servers
+logstash_type: web

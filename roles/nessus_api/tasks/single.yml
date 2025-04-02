@@ -1,0 +1,59 @@
+- name: Export the report for given scan "{{ item.name }}"
+  uri:
+    url: "{{ nessus_url }}/scans/{{ item.name }}/export"
+    method: POST
+    validate_certs: no
+    headers:
+      X-ApiKeys: "accessKey={{ nessus_access_key }}; secretKey={{ nessus_secret_key }}"
+    body: "format={{ nessus_report_format }}&chapters=vuln_by_host;remediations"
+  register: export_request
+
+- debug:
+    msg: "File id is {{ export_request.json.file }} and scan id is {{ item.name }}"
+
+- name: Check the report status for "{{ export_request.json.file }}"
+  uri:
+    url: "{{ nessus_url }}/scans/{{ item.name }}/export/{{ export_request.json.file }}/status"
+    method: GET
+    validate_certs: no
+    headers:
+      X-ApiKeys: "accessKey={{ nessus_access_key }}; secretKey={{ nessus_secret_key }}"
+  register: report_status
+
+- debug:
+    msg: "Report status is {{ report_status.json.status }}"
+
+- name: Pause for 30 seconds to build report
+  pause:
+    seconds: 30
+
+- name: Downloading the report locally
+  uri:
+    url: "{{ nessus_url }}/scans/{{ item.name }}/export/{{ export_request.json.file }}/download"
+    method: GET
+    validate_certs: no
+    headers:
+      X-ApiKeys: "accessKey={{ nessus_access_key }}; secretKey={{ nessus_secret_key }}"
+    return_content: yes
+    dest: "./{{ item.description }}.{{ nessus_report_format }}"
+  register: report_output
+
+- debug:
+    msg: "Report can be found at ./{{ item.description }}.{{ nessus_report_format }}"
+
+- name: Creates directory for reports
+  file:
+    path: "/nessus/{{ lookup('pipe','date +%Y-%m-%d') }}"
+    state: directory
+  become: yes
+
+- name: Copy reports to Share
+  copy:
+    src: "./{{ item.description }}.{{ nessus_report_format }}"
+    dest: "/nessus/{{ lookup('pipe','date +%Y-%m-%d') }}/{{ item.description }}.{{ nessus_report_format }}"
+  become: yes
+
+- name: Remove local report
+  file:
+    path: "./{{ item.description }}.{{ nessus_report_format }}"
+    state: absent

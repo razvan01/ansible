@@ -1,0 +1,38 @@
+- name: Install required system packages
+  ansible.builtin.apt:
+    name:
+      - git
+      - python3-pip
+    state: present
+    update_cache: true
+  when: install_arelle == "true"
+
+- name: Create the Arelle directory
+  ansible.builtin.file:
+    path: "{{ arelle_directory }}"
+    state: directory
+    mode: "755"
+    owner: "razvan1"
+    group: "razvan1"
+  when: install_arelle == "true"
+
+- name: Clone the Arelle repository
+  ansible.builtin.git:
+    repo: "{{ arelle_git_repo }}"
+    dest: "{{ arelle_directory }}"
+    version: "{{ arelle_git_version }}"
+    update: true
+  become: false
+  when: install_arelle == "true"
+
+- name: Install required Python packages via pip
+  ansible.builtin.pip:
+    name: "{{ required_pip_packages }}"
+    state: present
+  when: install_arelle == "true"
+
+- name: Install development requirements
+  ansible.builtin.pip:
+    requirements: "{{ arelle_directory }}/{{ requirements_file }}"
+    state: present
+  when: install_arelle == "true"

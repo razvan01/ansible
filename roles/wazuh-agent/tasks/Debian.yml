@@ -1,0 +1,86 @@
+- name: Import Wazuh GPG key and Add Wazuh repository
+  block:
+    - name: Import Wazuh GPG key
+      ansible.builtin.shell: |
+        curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+
+    - name: Add Wazuh repository
+      ansible.builtin.apt_repository:
+        filename: wazuh
+        repo: "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main"
+        state: present
+        update_cache: true
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Install Wazuh agent
+  ansible.builtin.apt:
+    name: "wazuh-agent={{ wazuh_agent_version }}"
+    state: latest
+  environment:
+    WAZUH_MANAGER: "{{ wazuh_manager_host }}"
+    WAZUH_REGISTRATION_SERVER: "{{ wazuh_manager_host }}"
+    WAZUH_REGISTRATION_PASSWORD: "{{ wazuh_agent_registration_password }}"
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Install auditd for Debian
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: latest
+  loop:
+    - auditd
+    - auditd-plugins
+  when: ansible_distribution == 'Debian'
+
+- name: Install auditd for Ubuntu
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: latest
+  loop:
+    - auditd
+    - audispd-plugins
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Add monitoring root commands rules
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/audit.rules
+    line: "{{ item }}"
+    state: present
+    create: yes
+  loop:
+    - "-w /etc -p wa -k wazuh_fim"
+    - "-a exit,always -F euid=0 -F arch=b64 -S execve -k audit-wazuh-c"
+    - "-a exit,always -F euid=0 -F arch=b32 -S execve -k audit-wazuh-c"
+
+- name: Reload audit rules
+  ansible.builtin.shell: auditctl -R /etc/audit/rules.d/audit.rules
+
+- name: Ensure auditd service is running
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+    enabled: yes
+
+- name: Start Wazuh agent
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: yes
+    name: wazuh-agent
+    enabled: yes
+
+- name: Ensure centralized configuration enabled
+  ansible.builtin.lineinfile:
+    path: /var/ossec/etc/local_internal_options.conf
+    line: wazuh_command.remote_commands=1
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Install Python pip
+  ansible.builtin.apt:
+    name: "python3-pip"
+    state: latest
+  when: "'docker-ce' in ansible_facts.packages"
+
+- name: Install Python Docker Library
+  ansible.builtin.pip:
+    name: docker==4.2.0
+    executable: pip3
+  when: "'docker-ce' in ansible_facts.packages"

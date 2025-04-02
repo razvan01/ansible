@@ -1,0 +1,51 @@
+---
+- name: Create sys_users
+  user:
+    shell=/bin/bash
+    createhome=yes
+    groups=root
+    name={{ item.user }}
+    state={{ item.state }}
+    remove={{ item.remove }}
+  with_items:
+    - "{{ sys_users }}"
+
+- name: Populate SSH Keys
+  authorized_key:
+    key="{{ lookup('file', item.user + '.pub') }}"
+    user="{{ item.user }}"
+    manage_dir=yes
+    state="{{ item.state }}"
+  when: item.state == "present"
+  with_items:
+    - "{{ sys_users }}"
+
+- name: Allow passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: '{{ item.state }}'
+    line: '{{ item.user }} ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+  when:
+    - item.sudo == "yes"
+    - item.state == "present"
+  with_items:
+    - "{{ sys_users }}"
+
+#- name: Allow SSH users
+#  lineinfile:
+#    dest: /etc/ssh/sshd_config
+#    state: '{{ item.state }}'
+#    line: 'AllowUsers {{ item.user }}'
+#  when: item.state == "present"
+#  with_items:
+#    - "{{ sys_users }}"
+#  notify: Restart sshd
+
+- name: Allow 'root' group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%root'
+    line: '%root ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'

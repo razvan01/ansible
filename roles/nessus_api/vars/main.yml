@@ -1,0 +1,17 @@
+nessus_access_key: 
+nessus_secret_key: 
+nessus_url: https://nessus.domain.com
+nessus_report_format: html
+report:
+ - name: 21
+   description: A_Servers
+ - name: 23
+   description: B_Servers
+ - name: 30
+   description: C_Network
+ - name: 34
+   description: D_Network
+ - name: 10
+   description: E_LTA_Intern
+ - name: 12
+   description: F_LTA_Extern

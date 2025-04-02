@@ -1,0 +1,42 @@
+- name: Backup current switch config (DELLOS 4 and lower)
+  shell: |
+    set timeout 300
+    spawn ssh {{ inventory_hostname }}
+    expect "User Name:"
+    send {{ ansible_ssh_user | regex_escape() }}\r
+    expect "Password:"
+    send {{ ansible_ssh_pass }}\r
+    expect "#"
+    send {{ command_terminal }}\r
+    expect "#"
+    send {{ command }}\r
+    expect "#"
+    send {{ command_exit }}\r
+  args:
+    executable: /usr/bin/expect
+  delegate_to: localhost
+  register: config
+
+- name: Save running-config to file
+  copy:
+    content: "{{ config.stdout }}"
+    dest: "{{ local_git_repo_path }}/{{ inventory_hostname }}.txt"
+    owner: awx
+    group: awx
+  delegate_to: localhost
+
+- name: Add configs to git
+  shell: |
+    git pull
+    rm -rf sed*
+    git add -A
+    sed -i -e 's/\r//g' -e '$ d' -e '1,/show running-config/d' {{ local_git_repo_path }}/{{ inventory_hostname }}.txt
+    sleep 5
+    git commit -m "Config snapshot taken $(date +"%Y-%m-%d %H:%M:%S")"
+    git push
+    chown awx:awx {{ local_git_repo_path }}/{{ inventory_hostname }}.txt
+    exit 0
+  args:
+    chdir: "{{ local_git_repo_path }}"
+    warn: False
+  delegate_to: localhost

@@ -1,0 +1,19 @@
+uninstall_old_docker_packages:
+  - name: docker
+  - name: docker-client
+  - name: docker-client-latest
+  - name: docker-common
+  - name: docker-latest
+  - name: docker-latest-logrotate
+  - name: docker-logrotate
+  - name: docker-engine
+
+install_required_packages:
+  - name: yum-utils
+  - name: device-mapper-persistent-data
+  - name: lvm2
+
+install_docker_packages:
+  - name: docker-ce
+  - name: docker-ce-cli
+  - name: containerd.io

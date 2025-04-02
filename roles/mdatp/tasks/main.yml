@@ -1,0 +1,107 @@
+---
+
+- name: Validate OS version requirements.
+  assert:
+    that:
+      - ansible_distribution_major_version > "6"
+    fail_msg: "Only RedHat 7 and newer are supported."
+    success_msg: "OS major version supported."
+  when:
+    - not uninstall
+    - ansible_os_family == "RedHat"
+
+- name: apt-get update
+  apt:
+    update_cache: yes
+  when:
+    - not uninstall
+    - ansible_os_family == "Debian"
+  tags:
+    - install
+    - dependencies
+
+- name: Install documented dependencies.
+  package:
+    name:
+      - curl
+      - unzip
+    state: present
+  when: not uninstall
+  tags:
+    - install
+    - dependencies
+
+- name: Install undocumented dependencies for EL 8.
+  dnf:
+    name:
+      - audispd-plugins
+    state: present
+  when:
+    - not uninstall
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version == "8"
+  tags:
+    - install
+    - dependencies
+
+- name: Install documented Debian dependencies.
+  apt:
+    name:
+      - apt-transport-https
+      - libplist-utils
+      - python-apt
+      - python3-apt
+      - gnupg
+    state: present
+  when:
+    - not uninstall
+    - ansible_os_family == "Debian"
+  tags:
+    - install
+    - dependencies
+
+- name: Setup packages.microsoft.com repository.
+  include_tasks: repository.yml
+
+- name: Unzip the onboarding package from Microsoft Defender Security Center.
+  include_tasks: onboarding_setup.yml
+
+- name: Manage the Defender package from Microsoft.
+  include_tasks: package.yml
+
+- name: Check for install log.
+  stat:
+    path: "{{ install_log }}"
+  register: mdatp_install_log
+  when: ansible_verbosity > 2
+  tags:
+    - debug
+
+- block:
+  - name: Load install log contents.
+    command: "cat {{ install_log }}" # noqa no-changed-when
+    register: mdatp_install
+    tags:
+      - debug
+
+  - name: "DEBUG: Print mdatp install log to console."
+    debug:
+      msg: "{{ mdatp_install.stdout }}"
+      verbosity: 3
+    tags:
+      - debug
+
+  when:
+    - mdatp_install_log.stat.exists is defined
+    - mdatp_install_log.stat.exists
+    - mdatp_install_log.stat.size > 0
+
+- name: Enable service mdatp and ensure it is not masked
+  ansible.builtin.systemd_service:
+    name: mdatp
+    enabled: true
+    masked: no
+    state: started
+
+- name: Update antivirus definition to the latest version
+  command: mdatp definitions update

@@ -1,0 +1,20 @@
+- name: Backup current switch config (Cisco)
+  ios_command:
+    commands: show running
+  register: config
+
+- name: save running-config to file
+  copy:
+    content: "{{ config.stdout[0] }}"
+    dest: "{{ local_git_repo_path }}/{{ inventory_hostname }}.txt"
+
+- name: commit changes to git
+  shell: |
+    git pull
+    rm -rf sed*
+    git add -A
+    git commit -m "Config snapshot taken $(date +"%Y-%m-%d %H:%M:%S")"
+    git push
+    exit 0
+  args:
+    chdir: "{{ local_git_repo_path }}"

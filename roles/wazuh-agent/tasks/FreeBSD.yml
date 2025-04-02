@@ -1,0 +1,67 @@
+- name: Detect if host is pfSense
+  ansible.builtin.stat:
+    path: /config/config.xml
+  register: pfsense
+
+- name: Enable FreeBSD package repository for pfSense
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    search_string: "{{ item.search }}"
+    line: "{{ item.line }}"
+  loop:
+    - {
+        path: "/usr/local/etc/pkg/repos/FreeBSD.conf",
+        search: "FreeBSD: { enabled: no }",
+        line: "FreeBSD: { enabled: yes }",
+      }
+    - {
+        path: "/usr/local/etc/pkg/repos/pfSense.conf",
+        search: "FreeBSD: { enabled: no }",
+        line: "FreeBSD: { enabled: yes }",
+      }
+    - {
+        path: "/etc/pkg/FreeBSD.conf",
+        search: "enabled: no",
+        line: "enabled: yes",
+      }
+  when: pfsense.stat.exists == true
+
+- name: Ensure FreeBSD repo is properly configured
+  ansible.builtin.lineinfile:
+    path: /etc/pkg/FreeBSD.conf
+    search_string: '  url: "pkg+http://pkg.FreeBSD.org/${ABI}/quarterly",'
+    line: 'url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest",'
+  when: pfsense.stat.exists == false
+
+- name: Install Wazuh agent
+  community.general.pkgng:
+    name: wazuh-agent
+    state: present
+    cached: false
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Copy /etc/localtime to /var/ossec/etc
+  ansible.builtin.copy:
+    src: /etc/localtime
+    dest: /var/ossec/etc/localtime
+    remote_src: yes
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Connect Wazuh agent to server
+  ansible.builtin.lineinfile:
+    path: /var/ossec/etc/ossec.conf
+    regexp: "<address>IP</address>"
+    line: "<address>siem.edw.ro</address>"
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Add Wazuh agent to /etc/rc.conf
+  ansible.builtin.lineinfile:
+    path: /etc/rc.conf
+    line: 'sysrc wazuh_agent_enable="YES"'
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Start Wazuh agent
+  command: /usr/local/etc/rc.d/wazuh-agent start
+
+- name: Enable on boot Wazuh agent
+  command: /usr/local/etc/rc.d/wazuh-agent enabled

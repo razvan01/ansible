@@ -1,0 +1,7 @@
+packages:
+  - sssd-ad
+  - sssd-tools
+  - realmd
+  - adcli
+
+ad_domain: example.com

@@ -1,0 +1,17 @@
+- name: Backup current switch config (DELLOS 6)
+  dellos6_config:
+    backup: yes
+  register: config
+
+- name: Add configs to git
+  shell: |
+    git pull
+    mv "{{ config.backup_path }}" "{{ local_git_repo_path }}/{{ inventory_hostname }}.txt"
+    rm -rf sed*
+    git add -A
+    git commit -m "Config snapshot taken $(date +"%Y-%m-%d %H:%M:%S")"
+    git push
+    chown awx:awx {{ local_git_repo_path }}/{{ inventory_hostname }}.txt
+    exit 0
+  args:
+    chdir: "{{ local_git_repo_path }}"

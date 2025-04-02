@@ -1,0 +1,7 @@
+- name: Add php artisan schedule:run to each vhost
+  ansible.builtin.cron:
+    name: "php artisan schedule:run for {{ item.vhost_name }}"
+    minute: "*"
+    job: "cd /var/www/{{ item.vhost_name }}/current && php artisan schedule:run >> /dev/null 2>&1"
+    user: www-data
+  loop: "{{ vhosts }}"

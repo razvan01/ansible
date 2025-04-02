@@ -1,0 +1,35 @@
+php_version: "8.3"
+install_arelle: "true"
+
+vhosts:
+  - vhost_name: domain.com
+    vhost_template: vhost-frontend.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "true"
+    db_name: "domain_app"
+    db_user: "domain_app"
+    db_password: "{{ vault_Db_Password }}"
+    db_host: "%"
+    with_supervisord: "false"
+
+  - vhost_name: api-hub.domain.com
+    vhost_template: vhost-api.j2
+    vhost_location_microsoft: "false"
+    vhost_location_wordpress: "false"
+    db_name: "domain_apihub"
+    db_user: "domain_apihub"
+    db_password: "{{ vault_ApiHubDb_password }}"
+    db_host: "%"
+    with_supervisord: "true"
+
+  - vhost_name: app.domain.com
+    vhost_template: vhost-app.j2
+    vhost_location_microsoft: "true"
+    vhost_location_microsoft_file: "microsoft-identity-association.json"
+    vhost_location_microsoft_applicationId: "{{ vault_AppVhostLocationMicrosoftApplicationId }}"
+    vhost_location_wordpress: "false"
+    db_name: "domain_app"
+    db_user: "domain_app"
+    db_password: "{{ vault_AppDb_Password }}"
+    db_host: "%"
+    with_supervisord: "true"

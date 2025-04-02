@@ -1,0 +1,74 @@
+- name: Remove old logstash version
+  yum:
+    name: logstash
+    state: absent
+
+- name: Add signing key
+  rpm_key:
+    state: present
+    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+- name: install logstash repo
+  copy:
+    src: logstash.repo
+    dest: /etc/yum.repos.d/logstash.repo
+
+- name: Install logstash
+  yum:
+    name: logstash
+    state: latest
+
+- name: Install logstash plugins
+  shell: /usr/share/logstash/bin/logstash-plugin install logstash-output-elasticsearch logstash-output-exec logstash-output-file logstash-filter-multiline logstash-output-tcp
+
+- name: Copy directory.conf
+  copy:
+    src: directory.conf
+    dest: /etc/logstash/conf.d/directory.conf
+  when: "'directory' in group_names"
+
+- name: Copy web tomcat.conf
+  copy:
+    src: tomcat.conf
+    dest: /etc/logstash/conf.d/tomcat.conf
+  when: "'web' in group_names"
+
+- name: Copy webchat tomcat.conf
+  copy:
+    src: tomcat-webchat.conf
+    dest: /etc/logstash/conf.d/tomcat.conf
+  when: "'webchat' in group_names"
+
+- name: copy origin wowza.conf
+  copy:
+    src: wowza.conf
+    dest: /etc/logstash/conf.d/wowza.conf
+  when: "'origin' in group_names"
+
+- name: copy edge wowza.conf
+  copy:
+    src: wowza_edge.conf
+    dest: /etc/logstash/conf.d/wowza.conf
+  when: "'edge' in group_names"
+
+- name: Add logstash sysconfig
+  copy:
+    src: logstash.sysconfig
+    dest: /etc/sysconfig/logstash
+
+- name: Add bulk config files
+  copy:
+    src: "{{ item.src }}"
+    dest: /etc/logstash
+  with_items:
+  - { src: 'jvm.options' }
+  - { src: 'log4j2.properties' }
+  - { src: 'logstash.yml' }
+  - { src: 'pipelines.yml' }
+  - { src: 'startup.options' }
+
+- name: Restart logstash
+  service:
+    name: logstash
+    enabled: true
+    state: restarted

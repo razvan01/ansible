@@ -1,0 +1,17 @@
+# Include Hetzner inventory
+- include_tasks: hetzner.yml
+
+# Include Proxmox inventory
+- include_tasks: proxmox.yml
+
+# Sync constructed inventory named ALL from AWX
+- name: Sync constructed inventory named ALL
+  local_action:
+    module: uri
+    url: https://ansible.domain.com/api/v2/inventories/8/update_inventory_sources/
+    user: "{{ user_awx }}"
+    password: "{{ password_awx }}"
+    force_basic_auth: true
+    method: POST
+    validate_certs: no
+    status_code: 200

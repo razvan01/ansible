@@ -1,0 +1,30 @@
+- name: Install supervisord
+  apt:
+    name: supervisor
+    state: present
+
+- name: Create supervisord configuration
+  template:
+    src: supervisord.conf.j2
+    dest: /etc/supervisor/supervisord.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart supervisord
+
+- name: Add supervisord configuration for each vhost
+  template:
+    src: supervisord-vhost.conf.j2
+    dest: "/etc/supervisor/conf.d/{{ item.vhost_name }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+  loop: "{{ vhosts }}"
+  when: item.with_supervisord == "true"
+  notify: Restart supervisord
+
+- name: Ensure supervisord is started
+  service:
+    name: supervisor
+    state: started
+    enabled: yes

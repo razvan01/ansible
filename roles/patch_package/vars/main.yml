@@ -1,0 +1,4 @@
+patch_packages_ubuntu:
+  - openssh-server
+patch_packages_redhat:
+  - openssh-server

@@ -1,0 +1,6 @@
+arelle_git_repo: "git@10.0.140.254:xxx/arelle.git"
+arelle_directory: "/opt/arelle"
+arelle_git_version: "HEAD"
+required_pip_packages:
+  - "arelle-release[Crypto,DB,EFM,ObjectMaker,WebServer]==2.26.1"
+requirements_file: "requirements-dev.txt"

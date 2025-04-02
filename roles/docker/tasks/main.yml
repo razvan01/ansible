@@ -1,0 +1,30 @@
+- name: Uninstall old versions of Docker
+  yum:
+    name: "{{ item.name }}"
+    state: removed
+  with_items:
+    - "{{ uninstall_old_docker_packages }}"
+
+- name: Install required packages
+  yum:
+    name: "{{ item.name }}"
+    state: latest
+  with_items:
+    - "{{ install_required_packages }}"
+
+- name: Add Docker repo
+  import_tasks: roles/repos/tasks/docker.yml
+
+- name: Install Docker packages
+  yum:
+    name: "{{ item.name }}"
+    state: latest
+  with_items:
+    - "{{ install_docker_packages }}"
+
+- name: start Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+    daemon-reload: yes

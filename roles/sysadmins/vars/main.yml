@@ -1,0 +1,6 @@
+---
+sys_users:
+  - user: razvan
+    state: present
+    remove: no
+    sudo: "yes"

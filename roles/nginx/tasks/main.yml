@@ -1,0 +1,106 @@
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop: "{{ packages }}"
+  when: ansible_os_family == 'Debian'
+
+- name: Add nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+
+- name: Ensure vhost root path exists
+  ansible.builtin.file:
+    path: /var/www/{{ item.vhost_name }}
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+  loop: "{{ vhosts }}"
+
+- name: Add all vhosts
+  ansible.builtin.template:
+    src: "{{ item.vhost_template }}"
+    dest: /etc/nginx/sites-available/{{ item.vhost_name }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ vhosts }}"
+
+- name: Set permissions on web directory
+  ansible.builtin.file:
+    path: /var/www/
+    state: directory
+    owner: www-data
+    group: www-data
+    recurse: true
+    mode: '0755'
+
+- name: Create well-known directory
+  ansible.builtin.file:
+    path: /var/www/.well-known/{{ item.vhost_name }}
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+  loop: "{{ vhosts }}"
+  when: item.vhost_location_microsoft == "true"
+
+- name: Populare well-known directory
+  ansible.builtin.template:
+    src: "{{ item.vhost_location_microsoft_file }}.j2"
+    dest: /var/www/.well-known/{{ item.vhost_name }}/{{ item.vhost_location_microsoft_file }}
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  loop: "{{ vhosts }}"
+  when: item.vhost_location_microsoft == "true" and
+        item.vhost_location_microsoft_applicationId | default('', true) | trim != '' and
+        item.vhost_location_microsoft_file | default('', true) | trim != ''
+
+- name: Get .ssh folder status
+  ansible.builtin.stat:
+    path: /var/www/.ssh
+  register: ssh_folder
+
+- name: Set permissions on .ssh directory
+  ansible.builtin.file:
+    path: /var/www/.ssh
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0700'
+  failed_when: ssh_folder.stat.exists == false
+
+- name: Set permissions on .ssh/authorized_keys file
+  ansible.builtin.file:
+    path: /var/www/.ssh/authorized_keys
+    state: file
+    owner: www-data
+    group: www-data
+    mode: '0600'
+  failed_when: ssh_folder.stat.exists == false
+
+- name: Set permissions on .ssh/id_rsa file
+  ansible.builtin.file:
+    path: /var/www/.ssh/id_rsa
+    state: file
+    owner: www-data
+    group: www-data
+    mode: '0600'
+  failed_when: ssh_folder.stat.exists == false
+
+- name: Enable vhost
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/{{ item.vhost_name }}
+    dest: /etc/nginx/sites-enabled/{{ item.vhost_name }}
+    state: link
+  loop: "{{ vhosts }}"
+  failed_when: false
+  notify: restart nginx

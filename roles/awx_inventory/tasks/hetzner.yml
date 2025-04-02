@@ -1,0 +1,32 @@
+- name: Prepare Hetzner inventory for cleanup
+  local_action:
+    module: uri
+    url: https://ansible.domain.com/api/v2/inventories/4/hosts/?page_size=1000
+    user: "{{ user_awx }}"
+    password: "{{ password_awx }}"
+    force_basic_auth: true
+    method: GET
+    body_format: json
+    validate_certs: no
+    status_code: 200
+  register: awx_hetzner_inventory
+
+- name: Cleanup Hetzner inventory
+  local_action:
+    module: uri
+    url: https://ansible.domain.com/api/v2/hosts/{{ item.id }}/
+    user: "{{ user_awx }}"
+    password: "{{ password_awx }}"
+    force_basic_auth: true
+    method: DELETE
+    validate_certs: no
+    status_code: 204
+  with_items: "{{ awx_hetzner_inventory.json.results | json_query(hosts_query) }}"
+  vars:
+    hosts_query: "[*].{id: id}"
+  when: awx_hetzner_inventory.json.results | json_query(hosts_query) | length > 0
+
+# Incluhe inventory from HTZ Core project
+- include_tasks: core.yml
+# Incluhe inventory from HTZ K8S project
+- include_tasks: k8s.yml

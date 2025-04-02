@@ -1,0 +1,26 @@
+- name: Reboot VM
+  win_reboot:
+
+- name: Stop HotFolder
+  win_shell: Stop-Process -name "HotFolder" -Force
+
+- name: Clean HotFolder
+  win_shell: Remove-Item -path "C:\Users\user\appdata\Local\ABBYY\HotFolder\12.00\*"
+
+- name: Add HotFolder tasks
+  win_copy:
+    src: "{{ item }}"
+    dest: C:\Users\user\appdata\Local\ABBYY\HotFolder\12.00\
+  with_items:
+    - files/Task2DOCX.hft
+    - files/Task2EXCEL.hft
+    - files/Task2HTM.hft
+    - files/Task2TXT.hft
+
+- name: Restart Licensing Server
+  win_service:
+    name: ABBYY.Licensing.FineReader.Corporate.12.0
+    state: restarted
+
+- name: Start HotFolder
+  win_reboot:

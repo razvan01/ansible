@@ -1,0 +1,62 @@
+- name: Install mariadb-server
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop: "{{ packages }}"
+  when: ansible_os_family == 'Debian'
+
+- name: Check if Python2 is installed
+  ansible.builtin.stat:
+    path: /usr/bin/python
+  register: python2
+
+- name: Check if Python3 is installed
+  ansible.builtin.stat:
+    path: /usr/bin/python3
+  register: python3
+
+- name: Install Python2 pip
+  ansible.builtin.apt:
+    name: python-pip
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Debian' and python2.stat.exists
+
+- name: Install Python3 pip
+  ansible.builtin.apt:
+    name: python3-pip
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Debian' and python3.stat.exists
+
+- name: Ensure Python2 requierments are installed
+  ansible.builtin.pip:
+    name: MySQLdb
+    state: present
+  when: ansible_os_family == 'Debian' and python2.stat.exists
+
+- name: Ensure Python3 requierments are installed
+  ansible.builtin.pip:
+    name: PyMySQL
+    state: present
+  when: ansible_os_family == 'Debian' and python3.stat.exists
+
+- name: Create database
+  community.mysql.mysql_db:
+    name: "{{ item.db_name }}"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  loop: "{{ vhosts }}"
+  when: item.db_name | default('', true) | trim != ''
+
+- name: Create user and grant privileges
+  community.mysql.mysql_user:
+    name: "{{ item.db_user }}"
+    password: "{{ item.db_password }}"
+    priv: "{{ item.db_name }}.*:ALL"
+    state: present
+    host: "{{ item.db_host | default('localhost', true) }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  loop: "{{ vhosts }}"
+  when: item.db_name | default('', true) | trim != '' and item.db_user | default('', true) | trim != '' and item.db_password | default('', true) | trim != ''

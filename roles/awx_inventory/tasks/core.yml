@@ -1,0 +1,30 @@
+- name: Get HTZ Core hosts
+  local_action:
+    module: uri
+    url: https://api.hetzner.cloud/v1/servers
+    headers:
+      Authorization: Bearer {{ token_core }}
+    method: GET
+    body_format: json
+    status_code: 200
+    return_content: yes
+  register: htz_core_hosts
+
+- name: Add Core hosts to group
+  local_action:
+    module: uri
+    url: https://ansible.domain.com/api/v2/groups/1/hosts/
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    user: "{{ user_awx }}"
+    password: "{{ password_awx }}"
+    force_basic_auth: true
+    method: POST
+    body_format: json
+    body: '{"name": "{{ item.name }}", "description": "{{ item.ip }}"}'
+    validate_certs: no
+    status_code: [201, 204]
+  with_items: "{{ htz_core_hosts.json | json_query(server_query) }}"
+  vars:
+    server_query: "servers[*].{ip: public_net.ipv4.ip, project: labels.Project, name: name}"

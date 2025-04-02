@@ -1,0 +1,39 @@
+- name: Install necessary software
+  package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ packages }}"
+  when: ansible_os_family == 'Debian'
+
+- name: Configure nsswitch
+  template:
+    src: nsswitch.conf.j2
+    dest: /etc/nsswitch.conf
+
+- name: Configure sssd
+  template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+
+- name: Configure krb5
+  template:
+    src: krb5.conf.j2
+    dest: /etc/krb5.conf
+
+- name: Join the domain
+  command: realm join --user={{ ad_user }} {{ ad_domain }}
+  no_log: true
+  when: realm_list_output.rc != 0 and ansible_os_family == 'Debian'
+  responses:
+    Password for {{ ad_user }}: "{{ ad_password }}"
+  register: realm_join_output
+
+- name: Enable automatic home directory creation
+  command: pam-auth-update --enable mkhomedir
+  when: realm_join_output.rc == 0 and ansible_os_family == 'Debian'
+
+- name: Restart sssd
+  service:
+    name: sssd
+    state: restarted
+  when: realm_join_output.rc == 0 and ansible_os_family == 'Debian'

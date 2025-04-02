@@ -1,0 +1,16 @@
+- name: Provision webserver
+  hosts: all
+  become: true
+
+  roles:
+    - php
+    - composer
+    - mariadb
+    - nginx
+    - vsftpd
+    - yarn
+    - nodejs
+    - redis
+    - supervisord
+    - crontab
+    - arelle

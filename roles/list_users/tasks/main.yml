@@ -1,0 +1,27 @@
+- name: Get all users
+  shell:
+    cmd: "getent passwd | awk -F: '$3 > 999 {print $1}'"
+  register: getent_passwd
+
+- name: Check if CSV exists
+  stat:
+    path: /tmp/users.csv
+  become: false
+  delegate_to: localhost
+  run_once: true
+  register: csv_file
+
+- name: Generate CSV file
+  shell:
+    cmd: "echo 'Hostname,Users' > /tmp/users.csv"
+  become: false
+  delegate_to: localhost
+  run_once: true
+  when: csv_file.stat.exists == False
+
+- name: Save users to file to /tmp/users.csv
+  shell:
+    cmd: "echo {{ inventory_hostname }}, {{ getent_passwd.stdout_lines }} | sed 's/[][]//g' >> /tmp/users.csv"
+  when: getent_passwd.stdout_lines is defined
+  become: false
+  delegate_to: localhost

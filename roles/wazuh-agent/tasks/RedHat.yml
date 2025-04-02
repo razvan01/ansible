@@ -1,0 +1,76 @@
+- name: Import Wazuh GPG key
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Add Wazuh repository
+  ansible.builtin.yum_repository:
+    name: wazuh
+    description: Wazuh
+    baseurl: https://packages.wazuh.com/4.x/yum/
+    gpgkey: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    protect: yes
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Install Wazuh agent
+  ansible.builtin.yum:
+    name: "wazuh-agent-{{ wazuh_agent_version }}"
+    state: latest
+  environment:
+    WAZUH_MANAGER: "{{ wazuh_manager_host }}"
+    WAZUH_REGISTRATION_SERVER: "{{ wazuh_manager_host }}"
+    WAZUH_REGISTRATION_PASSWORD: "{{ wazuh_agent_registration_password }}"
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Add monitoring root commands rules
+  ansible.builtin.lineinfile:
+    path: /etc/audit/audit.rules
+    line: "{{ item }}"
+    state: present
+    create: yes
+  loop:
+    - "-w /etc -p wa -k wazuh_fim"
+    - "-a exit,always -F euid=0 -F arch=b64 -S execve -k audit-wazuh-c"
+    - "-a exit,always -F euid=0 -F arch=b32 -S execve -k audit-wazuh-c"
+
+- name: Reload audit rules
+  ansible.builtin.shell: auditctl -R /etc/audit/audit.rules
+
+- name: Ensure auditd service is running
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+    enabled: yes
+    use: service
+
+- name: Ensure centralized configuration enabled
+  ansible.builtin.lineinfile:
+    path: /var/ossec/etc/local_internal_options.conf
+    line: wazuh_command.remote_commands=1
+  when: "'wazuh-agent' not in ansible_facts.packages"
+
+- name: Install Python pip
+  ansible.builtin.yum:
+    name: "python3-pip"
+    state: latest
+  when: "'docker-ce' in ansible_facts.packages"
+
+- name: Install Python Docker Library
+  ansible.builtin.pip:
+    name: docker==4.2.0
+    executable: pip3
+  when: "'docker-ce' in ansible_facts.packages"
+
+- name: Install chkconfig
+  ansible.builtin.dnf:
+    name: "chkconfig"
+    state: latest
+  when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '9'
+
+- name: Start Wazuh agent
+  ansible.builtin.systemd:
+    state: started
+    daemon_reload: yes
+    name: wazuh-agent
+    enabled: yes

@@ -1,0 +1,46 @@
+---
+
+- name: Add Microsoft apt key.
+  apt_key:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    id: BC528686B50D79E339D3721CEB3E94ADBE1229CF
+    state: "{{ uninstall | ternary ('absent', 'present') }}"
+  when: ansible_os_family == "Debian"
+  tags:
+    - debian
+    - repo
+
+- name: Add Microsoft apt repository for Defender.
+  apt_repository:
+    repo: "deb [arch=arm64,armhf,amd64] https://packages.microsoft.com/{{ ansible_distribution | lower }}/{{ ansible_distribution_version }}/prod {{ (channel == 'prod') | ternary(ansible_distribution_release, channel) }} main" # noqa 204
+    filename: "microsoft-{{ channel }}.list"
+    update_cache: yes
+    state: "{{ uninstall | ternary ('absent', 'present') }}"
+  when: ansible_os_family == "Debian"
+  tags:
+    - debian
+    - repo
+
+- name: Add Microsoft rpm key.
+  rpm_key:
+    key: https://packages.microsoft.com/keys/microsoft.asc
+    fingerprint: BC528686B50D79E339D3721CEB3E94ADBE1229CF
+    state: "{{ uninstall | ternary ('absent', 'present') }}"
+  when: ansible_os_family == "RedHat"
+  tags:
+    - redhat
+    - repo
+
+- name: Add Microsoft yum repository for Defender.
+  yum_repository:
+    name: "packages-microsoft-com-{{ channel }}"
+    description: Microsoft Defender Endpoint for Linux
+    file: "microsoft-{{ channel }}"
+    baseurl: "https://packages.microsoft.com/{{ (ansible_distribution == 'RedHat') | ternary('rhel', ansible_distribution) | lower }}/{{ ansible_distribution_major_version }}/{{ channel }}/" # noqa 204
+    gpgcheck: yes
+    enabled: yes
+    state: "{{ uninstall | ternary ('absent', 'present') }}"
+  when: ansible_os_family == "RedHat"
+  tags:
+    - redhat
+    - repo

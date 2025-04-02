@@ -1,0 +1,43 @@
+---
+- name: Generate report
+  shell: |
+    cookie=$(curl -s -k -i -u user:password -X POST -c /tmp/cookie-jar.txt https://vcenter.domain.com/rest/com/vmware/cis/session)
+    vms=$(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm | sed -e '1,5d' | jq '.value | .[] | select(.power_state | contains("POWERED_ON")) | select(.name | contains("Documenta")) | .vm')
+
+    for i in $(printf "%s\n" "${vms[@]}")
+    do
+      vmid=$(echo $i | tr -d '"')
+      echo "VM Name:" $(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm/$vmid | sed -e '1,5d'| jq '.value.name' | tr -d '"')
+      echo "vCPU:" $(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm/$vmid | sed -e '1,5d'| jq '.value.cpu.count')
+      echo "RAM:" $( expr $(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm/$vmid | sed -e '1,5d'| jq '.value | .memory | .size_MiB') / 1024 ) GB
+      counter=0
+      for disk in $(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm/$vmid | sed -e '1,5d'| jq '.value.disks | .[] | .value.capacity')
+      do
+        counter=$( expr $counter + 1 )
+        disk_size=$( expr $disk / 1024 / 1024 / 1024 )
+        echo "Disk $counter:" $disk_size GB
+      done
+      echo "IP: " $(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm/$vmid/guest/identity | sed -e '1,5d' | jq '.value.ip_address' | tr -d '"')
+      echo "State:" $(curl -s -k -i -b /tmp/cookie-jar.txt https://vcenter.domain.com/rest/vcenter/vm/$vmid | sed -e '1,5d'| jq '.value.power_state' | tr -d '"')
+      printf "%s\n"
+    done
+  register: report
+
+- name: Send email
+ mail:
+   subject: Raport masini virtuale clienti
+   from: ansible@domain.com
+   to: "{{ item.email }}"
+   body: |
+     Buna {{ item.nume }},
+     Mai jos este raportul saptamanal
+
+     "{{ report.stdout }}"
+
+ delegate_to: localhost
+ with_items:
+   - "{{ destinatar }}"
+
+- name: Print version
+  debug:
+    msg: '{{ report }}'

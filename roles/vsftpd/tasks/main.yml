@@ -1,0 +1,82 @@
+- name: Install vsftpd
+  ansible.builtin.apt:
+    name: vsftpd
+    state: present
+
+- name: Install libpam-pwdfile
+  ansible.builtin.apt:
+    name: libpam-pwdfile
+    state: present
+
+- name: Create FTP folder
+  ansible.builtin.file:
+    path: /etc/vsftpd/
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create users vsftpd folder config
+  ansible.builtin.file:
+    path: /etc/vsftpd/user_conf
+    state: directory
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update pam.d
+  ansible.builtin.template:
+    src: vsftpd.pam.j2
+    dest: /etc/pam.d/vsftpd
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create blank users.passwd file
+  ansible.builtin.command: touch /etc/vsftpd/users.passwd
+  args:
+    creates: /etc/vsftpd/users.passwd
+
+- name: Check if SSL certificate exists
+  ansible.builtin.stat:
+    path: /etc/vsftpd/vsftpd.crt
+  register: ssl_cert
+
+- name: Create self-signed certificate
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout /etc/vsftpd/vsftpd.key
+    -out /etc/vsftpd/vsftpd.crt
+    -subj "/C=UK/ST=London/L=London/O=Company/OU=IT Department/CN=domain.com"
+  changed_when: false
+  when: not ssl_cert.stat.exists
+
+- name: Create FTP virtual users
+  ansible.builtin.lineinfile:
+    path: /etc/vsftpd/users.passwd
+    line: "{{ item.ftp_user }}:{{ item.ftp_password | password_hash('md5') }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ vhosts }}"
+  when: item.ftp_user | default('', true) | trim != ''
+
+- name: Create FTP virtual users configuration files
+  ansible.builtin.template:
+    src: user_conf.j2
+    dest: /etc/vsftpd/user_conf/{{ item.ftp_user }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ vhosts }}"
+  when: item.ftp_user | default('', true) | trim != ''
+
+- name: Copy vsftpd configuration file
+  ansible.builtin.template:
+    src: vsftpd.conf.j2
+    dest: /etc/vsftpd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart vsftpd
