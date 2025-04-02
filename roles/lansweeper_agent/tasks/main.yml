@@ -1,0 +1,7 @@
+- name: Install Lansweeper agent for Linux
+  ansible.builtin.include_tasks: Linux.yml
+  when: ansible_system == 'Linux'
+
+- name: Install Lansweeper agent for Windows
+  ansible.builtin.include_tasks: Windows.yml
+  when: ansible_system == 'Windows'

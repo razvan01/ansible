@@ -1,0 +1,77 @@
+- name: Gather security updates on Ubuntu
+  ansible.builtin.shell: |
+    apt list --upgradable 2>/dev/null | grep -i security || true
+  register: ubuntu_updates
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Gather security updates on RHEL/CentOS
+  ansible.builtin.command:
+    cmd: "yum list updates --security"
+  register: rhel_updates
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Save detailed report
+  ansible.builtin.copy:
+    content: |
+      Host: {{ inventory_hostname }}
+      OS: {{ ansible_facts['distribution'] }}
+      Security Updates:
+      {% if ansible_facts['os_family'] == 'Debian' %}
+      {% if ubuntu_updates.stdout.strip() %}
+      {{ ubuntu_updates.stdout }}
+      {% else %}
+      No security updates available.
+      {% endif %}
+      {% elif ansible_facts['os_family'] == 'RedHat' %}
+      {% if rhel_updates.stdout.strip() %}
+      {{ rhel_updates.stdout }}
+      {% else %}
+      No security updates available.
+      {% endif %}
+
+      {% endif %}
+    dest: "{{ patch_management_security_updates_report_path }}/{{ inventory_hostname }}_updates.txt"
+    mode: '0644'
+  become: false
+  delegate_to: localhost
+
+- name: Combine detailed reports into a single file
+  ansible.builtin.assemble:
+    src: "{{ patch_management_security_updates_report_path }}"
+    dest: "{{ patch_management_security_updates_report_path }}/detailed_security_report.txt"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Generate CSV file header
+  shell:
+    cmd: "echo 'Host,OS,Updates' > {{ patch_management_security_updates_report_path }}/security_report.csv"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Append data to CSV report
+  ansible.builtin.lineinfile:
+    path: "{{ patch_management_security_updates_report_path }}/security_report.csv"
+    line: >
+      {{ inventory_hostname }},{{ ansible_facts['distribution'] }},
+      {% if ansible_facts['os_family'] == 'Debian' %}
+      {{ "Security updates available" if ubuntu_updates.stdout.strip() else "No security updates available" }}
+      {% elif ansible_facts['os_family'] == 'RedHat' %}
+      {{ "Security updates available" if rhel_updates.stdout.strip() else "No security updates available" }}
+      {% endif %}
+    insertafter: EOF
+  become: false
+  delegate_to: localhost
+
+- name: Compress the security reports
+  ansible.builtin.archive:
+    path: 
+      - "{{ patch_management_security_updates_report_path }}/detailed_security_report.txt"
+      - "{{ patch_management_security_updates_report_path }}/security_report.csv"
+    dest: "{{ patch_management_security_updates_report_path }}/security_report.zip"
+    format: zip
+  delegate_to: localhost
+  run_once: true
+  become: false

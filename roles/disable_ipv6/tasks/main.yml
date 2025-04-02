@@ -1,0 +1,42 @@
+---
+- name: Disable IPv6 on Linux
+  when: ansible_os_family == 'Debian' or ansible_os_family == 'RedHat'
+  become: true
+  block:
+    - name: Ensure sysctl parameters for IPv6 are present
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      with_items:
+        - { name: 'net.ipv6.conf.all.disable_ipv6', value: '1' }
+        - { name: 'net.ipv6.conf.default.disable_ipv6', value: '1' }
+        - { name: 'net.ipv6.conf.lo.disable_ipv6', value: '1' }
+
+    - name: Extract current GRUB_CMDLINE_LINUX
+      command: grep 'ipv6.disable=1' /etc/default/grub
+      register: grub_cmdline_linux_current
+      ignore_errors: yes
+
+    - name: Ensure ipv6.disable=1 is present in GRUB_CMDLINE_LINUX
+      replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=".*)"'
+        replace: '\1 ipv6.disable=1"'
+        backup: yes
+      when: grub_cmdline_linux_current.stdout == "" and ansible_os_family == 'Debian'
+      notify: Update GRUB Debian
+
+    - name: Ensure ipv6.disable=1 is present in GRUB_CMDLINE_LINUX
+      replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX=".*)"'
+        replace: '\1 ipv6.disable=1'
+        backup: yes
+      when: grub_cmdline_linux_current.stdout == "" and ansible_os_family == 'RedHat'
+      notify: Update GRUB RedHat
+  tags:
+    - ipv6
+    - linux

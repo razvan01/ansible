@@ -1,0 +1,54 @@
+---
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Check if a reboot is needed
+  register: reboot_required_file
+  stat: path=/var/run/reboot-required get_checksum=no
+
+- name: Sleep for 10 seconds to allow the system to settle
+  ansible.builtin.wait_for:
+    timeout: 10
+
+- name: Remove useless packages from the cache
+  ansible.builtin.apt:
+    autoclean: true
+
+- name: Remove dependencies that are no longer required
+  ansible.builtin.apt:
+    autoremove: true
+
+- name: Install molly-guard package
+  ansible.builtin.apt:
+    name: molly-guard
+    state: present
+    update_cache: yes
+
+- name: Server reboot needed but not approved
+  ansible.builtin.debug:
+    msg: "Server reboot is needed but not approved. Please approve the reboot by setting the variable patch_management_reboot_approved to true."
+  when: reboot_required_file.stat.exists and patch_management_reboot_approved | default('', false) | trim == ''
+
+- name: Reboot the box if kernel updated
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by Ansible"
+    connect_timeout: 5
+    reboot_timeout: 300
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+    reboot_command: /lib/molly-guard/reboot
+  environment:
+    I_KNOW_WHAT_I_AM_DOING: "1"
+  when: reboot_required_file.stat.exists and patch_management_reboot_approved | default('', false) | trim != ''
+
+- name: Wait for the server to come back online
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 300
+    sleep: 5
+  when: reboot_required_file.stat.exists and patch_management_reboot_approved | default('', false) | trim != ''

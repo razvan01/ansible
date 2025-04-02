@@ -1,0 +1,25 @@
+- name: "Gather packages facts"
+  ansible.builtin.package_facts:
+    manager: "auto"
+
+- name: Check if package is installed
+  ansible.builtin.debug:
+    msg: "mdatp is not installed on server {{ inventory_hostname }}"
+  when: "'mdatp' not in ansible_facts.packages"
+
+- name: Check if the definitions are up to date
+  ansible.builtin.shell:
+    cmd: mdatp health | grep definitions_status | cut -d\" -f2
+  when: "'mdatp' in ansible_facts.packages"
+  register: mdatp_definitions_status
+  changed_when: false
+
+- name: debug
+  ansible.builtin.debug:
+    msg: "{{ mdatp_definitions_status.stdout }}"
+
+- name: Update mdatp antivirus definitions
+  ansible.builtin.shell:
+    cmd: mdatp definitions update
+  when: mdatp_definitions_status.stdout is defined and mdatp_definitions_status.stdout != "up_to_date" and "'mdatp' in ansible_facts.packages"
+  register: mdatp_update_definitions

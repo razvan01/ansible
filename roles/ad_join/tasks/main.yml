@@ -1,39 +1,89 @@
+- name: Check role variables exist else fail
+  ansible.builtin.fail:
+    msg: "Required variable {{ item }} is not defined in vars/main.yml"
+  with_items:
+    - AD_USER
+    - AD_PASSWORD
+  when: AD_USER is not defined or AD_PASSWORD is not defined
+
+- name: Check if winbind service is running
+  ansible.builtin.service:
+    name: winbind
+    state: started
+  register: winbind_service
+  ignore_errors: true
+
+- name: Check if the server is joined to AD using reaml list
+  command: realm list
+  register: join_status
+  ignore_errors: true
+
+- name: install pexpect
+  ansible.builtin.package:
+    name: python3-pexpect
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Remove from AD
+  ansible.builtin.expect:
+    command: realm leave -U {{ AD_USER }}
+    responses:
+      Password for *: "{{ AD_PASSWORD }}"
+  when: join_status.stdout != ""
+
+- name: Check if the server is joined to AD using net ads status
+  command: net ads testjoin
+  register: net_ads_testjoin
+  ignore_errors: true
+
 - name: Install necessary software
-  package:
+  ansible.builtin.package:
     name: "{{ item }}"
     state: present
   loop: "{{ packages }}"
-  when: ansible_os_family == 'Debian'
+  when: ansible_os_family == 'Debian' and
+        winbind_service.state is defined and
+        "'Join is OK' not in net_ads_testjoin.stdout"
+
+- name: Check join status
+  command: realm list
+  register: join_status
 
 - name: Configure nsswitch
-  template:
+  ansible.builtin.template:
     src: nsswitch.conf.j2
     dest: /etc/nsswitch.conf
-
-- name: Configure sssd
-  template:
-    src: sssd.conf.j2
-    dest: /etc/sssd/sssd.conf
-
-- name: Configure krb5
-  template:
-    src: krb5.conf.j2
-    dest: /etc/krb5.conf
+    mode: '0644'
+  when: join_status.stdout == "" and "'Join is OK' not in net_ads_testjoin.stdout"
 
 - name: Join the domain
-  command: realm join --user={{ ad_user }} {{ ad_domain }}
-  no_log: true
-  when: realm_list_output.rc != 0 and ansible_os_family == 'Debian'
-  responses:
-    Password for {{ ad_user }}: "{{ ad_password }}"
+  ansible.builtin.expect:
+    command: realm join -U {{ AD_USER }} {{ AD_DOMAIN }}
+    responses:
+      Password for *: "{{ AD_PASSWORD }}"
   register: realm_join_output
+  when: join_status.stdout == "" and "'Join is OK' not in net_ads_testjoin.stdout"
+
+- name: Configure sssd
+  ansible.builtin.template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+    mode: '0600'
+  when: join_status.stdout == "" and "'Join is OK' not in net_ads_testjoin.stdout"
+
+- name: Configure krb5
+  ansible.builtin.template:
+    src: krb5.conf.j2
+    dest: /etc/krb5.conf
+    mode: '0644'
+  when: join_status.stdout == "" and "'Join is OK' not in net_ads_testjoin.stdout"
 
 - name: Enable automatic home directory creation
   command: pam-auth-update --enable mkhomedir
-  when: realm_join_output.rc == 0 and ansible_os_family == 'Debian'
+  when: ansible_os_family == 'Debian' and join_status.stdout == "" and "'Join is OK' not in net_ads_testjoin.stdout"
 
 - name: Restart sssd
-  service:
+  ansible.builtin.service:
     name: sssd
     state: restarted
-  when: realm_join_output.rc == 0 and ansible_os_family == 'Debian'
+  when: ansible_os_family == 'Debian' and join_status.stdout == "" and "'Join is OK' not in net_ads_testjoin.stdout"

@@ -1,0 +1,4 @@
+---
+# - name: Ensure filesets are up-to-date
+#   command: "/usr/sbin/install_all_updates -c -Y"
+#   become: yes

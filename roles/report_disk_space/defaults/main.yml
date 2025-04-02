@@ -1,0 +1,8 @@
+report_disk_space_partitions:
+  - /
+  - /var
+  - /tmp
+  - /opt
+  - /var/tmp
+  - /usr
+report_disk_space_min_required_space: 10

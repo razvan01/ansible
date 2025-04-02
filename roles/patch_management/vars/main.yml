@@ -1,0 +1,3 @@
+patch_management_sufficient_space_value: 10
+patch_management_reboot_approved: false
+patch_management_disk_partition: /var

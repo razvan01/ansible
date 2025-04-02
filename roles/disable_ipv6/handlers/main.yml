@@ -1,0 +1,29 @@
+---
+- name: Update GRUB Debian
+  command: update-grub
+  become: true
+  notify: Reboot
+  tags:
+    - ipv6
+    - grub
+    - reboot
+
+- name: Update GRUB RedHat
+  command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  become: true
+  notify: Reboot
+  tags:
+    - ipv6
+    - grub
+    - reboot
+
+- name: Reboot
+  reboot:
+    reboot_timeout: 300
+    msg: "Reboot initiated by Ansible for changes to take effect"
+    connect_timeout: 30
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+    test_period: 5
+    test_interval: 5

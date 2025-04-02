@@ -1,0 +1,11 @@
+---
+patch_management_security_updates_generate_report: true
+patch_management_security_updates_apply_security_updates: false
+patch_management_security_updates_report_path: "/tmp/reports"
+
+# Email settings
+patch_management_security_updates_email_smtp_server: "smtp-p.domain.com"
+patch_management_security_updates_email_smtp_port: 25
+patch_management_security_updates_email_sender: "ansible@domain.com"
+patch_management_security_updates_email_recipients:
+  - "Linux master <limaster@domain.com>"

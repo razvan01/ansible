@@ -1,0 +1,7 @@
+- name: Upload Lansweeper Agent
+  ansible.windows.win_copy:
+    src: LsAgent-windows.exe
+    dest: C:\Windows\Temp
+
+- name: Install Lansweeper Agent
+  ansible.windows.win_command: C:\Windows\Temp\LsAgent-windows.exe --server {{ lansweeper_agent_server }} --port 9524 --mode unattended

@@ -1,0 +1,12 @@
+- name: Send security updates report via email
+  community.general.mail:
+    host: "{{ patch_management_security_updates_email_smtp_server }}"
+    port: "{{ patch_management_security_updates_email_smtp_port }}"
+    from: "{{ patch_management_security_updates_email_sender }}"
+    to: "{{ patch_management_security_updates_email_recipients }}"
+    subject: "Security Updates Report - {{ ansible_date_time.date }}"
+    body: "Please find attached the security updates report."
+    attach: "{{ patch_management_security_updates_report_path }}/security_report.zip"
+  delegate_to: localhost
+  run_once: true
+  become: false

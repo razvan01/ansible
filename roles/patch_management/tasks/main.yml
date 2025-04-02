@@ -1,0 +1,36 @@
+- name: Gather OS Specific Variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "../vars/defaults.yml"
+      skip: true
+
+- name: Check available disk space
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      df -h {{ patch_management_disk_partition }} | awk 'NR==2{print $4}'
+    executable: /bin/bash
+  changed_when: false
+  register: disk_space
+
+- name: Set fact if sufficient disk space is available
+  ansible.builtin.set_fact:
+    sufficient_space: "{{ (disk_space.stdout | regex_replace('G', '') | float) > patch_management_sufficient_space_value | float }}"
+
+- name: Group servers based on disk space availability
+  ansible.builtin.group_by:
+    key: "{{ 'sufficient_space' if sufficient_space else 'insufficient_space' }}"
+
+- name: "Include specific tasks file for {{ ansible_os_family }}"
+  ansible.builtin.include_tasks: "{{ ansible_os_family }}.yml"
+  when: sufficient_space
+
+- name: Fail if servers have insufficient disk space
+  ansible.builtin.fail:
+    msg: >
+      "Host: {{ inventory_hostname }} does not have sufficient disk space on {{ patch_management_disk_partition }} partition.
+      Available space: {{ disk_space.stdout }}, required minimum: {{ patch_management_sufficient_space_value | float }}G"
+  when: not sufficient_space
+  delegate_to: localhost
+  become: false

@@ -1,0 +1,56 @@
+---
+- name: Check if mdatp is installed
+  command: which mdatp
+  register: mdatp_installed
+  ignore_errors: true
+
+- name: Get automatic_definition_update_enabled value
+  command: mdatp health --field automatic_definition_update_enabled
+  when: mdatp_installed.rc == 0
+  register: mdatp_health
+
+- name: Get definitions_updated date
+  command: mdatp health --field definitions_updated
+  when: mdatp_installed.rc == 0
+  register: mdatp_definitions_updated
+
+- name: Add server to mdatp_installed group
+  add_host:
+    name: "{{ inventory_hostname }}"
+    groups: mdatp_installed
+  when: mdatp_installed.rc == 0
+
+- name: Add server to mdatp_not_installed group
+  add_host:
+    name: "{{ inventory_hostname }}"
+    groups: mdatp_not_installed
+  when: mdatp_installed.rc != 0
+
+- name: Set fact for automatic_definition_update_enabled
+  set_fact:
+    automatic_definition_update_enabled: "{{ mdatp_health.stdout }}"
+  when: mdatp_installed.rc == 0
+
+- name: Set fact for definitions_updated
+  set_fact:
+    definitions_updated: "{{ mdatp_definitions_updated.stdout }}"
+  when: mdatp_installed.rc == 0 and mdatp_definitions_updated.stdout is defined and mdatp_definitions_updated.stdout != ""
+
+- name: Ensure definitions_updated is in proper format
+  set_fact:
+    definitions_updated_str: "{{ definitions_updated }}"
+  when: definitions_updated is defined and definitions_updated | length > 0
+
+- name: debug
+  debug: 
+    msg: "{{ ansible_date_time.iso8601 }}"
+
+- name: debug
+  debug:
+    msg: "{{ definitions_updated_str | to_datetime('%B %d, %Y at %I:%M:%S %p') | strftime('%Y-%m-%dT%H:%M:%S%z') }}"
+  
+- name: Check if definitions were updated in the last 5 days
+  set_fact:
+    outdated_definitions: "{{ (ansible_date_time.iso8601 | to_datetime) - (definitions_updated_str | to_datetime('%b %d, %Y at %I:%M:%S %p')) > 5 * 24 * 60 * 60 }}"
+  when: definitions_updated_str is defined and definitions_updated_str | length > 0
+

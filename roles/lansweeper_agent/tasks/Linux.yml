@@ -1,0 +1,33 @@
+- name: Check if lans01 is reachable
+  ansible.builtin.wait_for:
+    host: "{{ lansweeper_agent_server }}"
+    port: 9524
+    state: started
+    timeout: 10
+  register: lansweeper_server_reachable
+
+- name: Check if Lansweeper agent is already installed
+  ansible.builtin.stat: 
+    path: /opt/LansweeperAgent/LSAgent
+  register: lansweeper_agent_installed
+
+- name: Upload Lansweeper agent
+  ansible.builtin.copy:
+    src: LsAgent-linux.run
+    dest: /tmp/LsAgent-linux.run
+    mode: 'a+x'
+  when: lansweeper_server_reachable is success and lansweeper_agent_installed.stat.exists == false
+
+- name: Install Lansweeper agent
+  ansible.builtin.shell: /tmp/LsAgent-linux.run --server {{ lansweeper_agent_server }} --port 9524 --mode unattended
+  args:
+    chdir: /tmp
+  register: lansweeper_agent_install
+  when: lansweeper_server_reachable is success and lansweeper_agent_installed.stat.exists == false
+
+- name: Enable and start Lansweeper agent service
+  ansible.builtin.systemd:
+    name: ls-agent
+    enabled: yes
+    state: started
+  when: lansweeper_server_reachable is success and lansweeper_agent_install is success and lansweeper_agent_installed.stat.exists == false

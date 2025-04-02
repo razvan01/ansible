@@ -51,7 +51,7 @@
   ansible.builtin.lineinfile:
     path: /var/ossec/etc/ossec.conf
     regexp: "<address>IP</address>"
-    line: "<address>siem.edw.ro</address>"
+    line: "<address>siem.domain.com</address>"
   when: "'wazuh-agent' not in ansible_facts.packages"
 
 - name: Add Wazuh agent to /etc/rc.conf

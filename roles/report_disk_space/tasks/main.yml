@@ -1,0 +1,35 @@
+- name: Check available disk space
+  ansible.builtin.shell: |
+    df -h {{ item }} | awk 'NR==2 {print $4}'
+  register: disk_space
+  with_items: "{{ report_disk_space_partitions }}"
+  changed_when: false
+
+- name: Generate CSV file
+  ansible.builtin.shell:
+    cmd: "echo 'Hostname,Partition,Space' > /tmp/servers.csv"
+  become: false
+  delegate_to: localhost
+  run_once: true
+  changed_when: false
+
+- name: Save servers to file to /tmp/servers.csv
+  ansible.builtin.shell:
+    cmd: "echo {{ inventory_hostname }},{{ item.item }},{{ item.stdout }} >> /tmp/servers.csv"
+  with_items: "{{ disk_space.results }}"
+  when: item.stdout | int < report_disk_space_min_required_space
+  delegate_to: localhost
+  become: false
+
+- name: Send email with /tmp/servers.csv
+  community.general.mail:
+    host: smtp-p.domain.com
+    port: 25
+    subject: "[Report] Servers disk space"
+    body: "Please check the attached file for servers disk space"
+    from: ansible@domain.com
+    to: Linux master <limaster@domain.com>
+    attach: /tmp/servers.csv
+  delegate_to: localhost
+  run_once: true
+  become: false

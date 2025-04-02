@@ -1,0 +1,30 @@
+- name: Ensure report directory exists
+  ansible.builtin.file:
+    path: "{{ patch_management_security_updates_report_path }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when: patch_management_security_updates_generate_report | bool
+
+- name: Collect security updates report
+  ansible.builtin.include_tasks: collect_report.yml
+  when: patch_management_security_updates_generate_report | bool
+
+- name: Send security updates report via email
+  ansible.builtin.include_tasks: send_report.yml
+  when: patch_management_security_updates_generate_report | bool
+
+- name: Apply security updates
+  ansible.builtin.include_tasks: apply_updates.yml
+  when: patch_management_security_updates_apply_security_updates | bool
+
+- name: Remove reports from local disk
+  ansible.builtin.file:
+    path: "{{ patch_management_security_updates_report_path }}"
+    state: absent
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when: patch_management_security_updates_generate_report | bool

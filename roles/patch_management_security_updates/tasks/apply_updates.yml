@@ -1,0 +1,11 @@
+- name: Apply security updates on Ubuntu
+  ansible.builtin.shell: |
+    apt-get -s dist-upgrade | grep "^Inst" | grep -i security | awk '{print $2}' | xargs apt-get install -y
+  when: ansible_facts['os_family'] == 'Debian'
+  check_mode: false
+  changed_when: false
+
+- name: Apply security updates on RHEL/CentOS
+  ansible.builtin.shell: |
+    yum update --security -y
+  when: ansible_facts['os_family'] == 'RedHat'
